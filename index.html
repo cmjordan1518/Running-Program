@@ -800,8 +800,10 @@ const SEED_RUNS = [
   {id:'s100',date:'2026-05-18',miles:3.01,secs:1490,type:'outdoor'},
 ];
 
-const GOAL = 750;
-const KEY  = 'cj_runs_2026';
+const GOAL     = 750;
+const KEY      = 'cj_runs_2026';
+const VER_KEY  = 'cj_runs_version';
+const DATA_VER = 2; // increment this whenever seed data structure changes
 let editId = null;
 
 // ── QUOTES ──
@@ -857,11 +859,49 @@ const MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','D
 
 // ── STORAGE ──
 function loadRuns() {
-  try { const s=localStorage.getItem(KEY); if(s) return JSON.parse(s); } catch(e){}
-  localStorage.setItem(KEY, JSON.stringify(SEED_RUNS));
-  return SEED_RUNS;
+  try {
+    const savedVer = parseInt(localStorage.getItem(VER_KEY)||'0');
+    const raw = localStorage.getItem(KEY);
+
+    // No data at all — first launch, write seeds
+    if (!raw) {
+      localStorage.setItem(KEY, JSON.stringify(SEED_RUNS));
+      localStorage.setItem(VER_KEY, String(DATA_VER));
+      return SEED_RUNS;
+    }
+
+    let runs = JSON.parse(raw);
+
+    // Version is outdated — migrate: merge saved runs with seed secs data
+    if (savedVer < DATA_VER) {
+      // Build a lookup of seed secs by id
+      const seedMap = {};
+      SEED_RUNS.forEach(s => { seedMap[s.id] = s.secs; });
+
+      // For each stored run: if it's a seed run missing secs, restore from seed
+      runs = runs.map(r => {
+        if (r.id && r.id.startsWith('s') && (!r.secs || r.secs === 0)) {
+          return { ...r, secs: seedMap[r.id] || 0 };
+        }
+        return r;
+      });
+
+      // Save migrated data and bump version
+      localStorage.setItem(KEY, JSON.stringify(runs));
+      localStorage.setItem(VER_KEY, String(DATA_VER));
+    }
+
+    return runs;
+  } catch(e) {
+    localStorage.setItem(KEY, JSON.stringify(SEED_RUNS));
+    localStorage.setItem(VER_KEY, String(DATA_VER));
+    return SEED_RUNS;
+  }
 }
-function saveRuns(r) { localStorage.setItem(KEY, JSON.stringify(r)); }
+function saveRuns(r) {
+  localStorage.setItem(KEY, JSON.stringify(r));
+  localStorage.setItem(VER_KEY, String(DATA_VER));
+}
 function genId() { return 'r'+Date.now()+Math.random().toString(36).slice(2,5); }
 
 // ── PACE PREVIEW IN MODAL ──
@@ -975,7 +1015,10 @@ function exportCSV() {
 }
 function showReset() {
   if(confirm('Reset ALL data to original Jan–May seed data?')){
-    localStorage.removeItem(KEY); render(); showToast('Reset to seed data');
+    localStorage.removeItem(KEY);
+    localStorage.removeItem(VER_KEY);
+    render();
+    showToast('Reset to seed data');
   }
 }
 
