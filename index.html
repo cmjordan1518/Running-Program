@@ -1038,10 +1038,9 @@ function render() {
   document.getElementById('statTotalTime').textContent=totalSecs>0?fmtTimeHM(totalSecs):'—';
   document.getElementById('statWeekly').textContent=wkNeeded;
   document.getElementById('statBest').textContent=bestRun;
-  document.getElementById('trainingTarget').textContent=wkNeeded;
+  const _el_trainingTarget=document.getElementById('trainingTarget'); if(_el_trainingTarget) _el_trainingTarget.textContent=wkNeeded;
 
   const months=new Set(runs.map(r=>r.date.slice(0,7)));
-  document.getElementById('statMonths').textContent=months.size;
 
   setTimeout(()=>{document.getElementById('progressFill').style.width=Math.min(pct,100)+'%';},150);
 
@@ -1239,7 +1238,7 @@ function render() {
       '<td class="mono" style="color:var(--accent)">'+r.miles.toFixed(2)+'</td>'+
       '<td class="mono" style="color:var(--muted)">'+timeStr+'</td>'+
       '<td class="mono" style="color:var(--text)">'+pace+'</td>'+
-      '<td><button class="btn-icon" onclick=\'openModal('+JSON.stringify(r).replace(/'/g,"&#39;")+')\'title="Edit">✏️</button></td>';
+      '<td><button class="btn-icon" data-rid="'+r.id+'" onclick="editRun(this)" title="Edit">✏️</button></td>';
     logBody.appendChild(tr);
   });
 
@@ -1253,6 +1252,13 @@ function render() {
       '<tr><td style="color:var(--muted);font-size:12px">Total time</td><td class="mono" style="font-size:12px">'+fmtTimeHM(totalSecs)+'</td></tr>'+
       '<tr><td style="color:var(--muted);font-size:12px">Last updated</td><td class="mono" style="font-size:12px">'+new Date().toLocaleDateString()+'</td></tr>';
   }
+}
+
+// Safe edit helper — looks up run by id from storage
+function editRun(btn) {
+  const id = btn.getAttribute('data-rid');
+  const run = loadRuns().find(r => r.id === id);
+  if (run) openModal(run);
 }
 
 document.addEventListener('DOMContentLoaded', render);
